@@ -1,26 +1,43 @@
 package main
 
 import (
+	"flag"
 	"fmt"
+	"io"
+	"log"
 	"net/http"
+	"os"
 
 	URLShortner "github.com/cameo1221/URL-Shortner/Handler"
 )
 
 func main() {
 	mux := defaultMux()
+	yamlFilePath := flag.String("yaml", "", "URL-Shortner/yamlfile.yaml")
+	flag.Parse()
 
+	if *yamlFilePath == "" {
+		log.Fatal("Please provide a YAML file path using the -yaml flag")
+	}
+	// Open the file and handle any errors
+	file, err := os.Open(*yamlFilePath)
+	if err != nil {
+		log.Fatalf("Error opening YAML file: %v", err)
+	}
+	defer file.Close()
+
+	// Now file is an io.Reader, so we can pass it to io.ReadAll
+	yamlBytes, err := io.ReadAll(file)
+	if err != nil {
+		log.Fatalf("Error reading YAML file: %v", err)
+	}
 	pathsToUrls := map[string]string{
 		"/urlshort-godoc": "https://godoc.org/github.com/gophercises/urlshort",
 		"/yaml-godoc":     "https://godoc.org/gopkg.in/yaml.v2",
 	}
 	mapHandler := URLShortner.MapHandler(pathsToUrls, mux)
-	yaml := `
-- path: /urlshort
-  url: https://google.com
-- path: /urlshort-final
-  url: https://godoc.org/gopkg.in/yaml.v2`
-	yamlHandler, err := URLShortner.YAMLHandler([]byte(yaml), mapHandler)
+
+	yamlHandler, err := URLShortner.YAMLHandler(yamlBytes, mapHandler)
 	if err != nil {
 		panic(err)
 	}
