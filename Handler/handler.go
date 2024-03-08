@@ -1,16 +1,14 @@
 package URLShortner
 
 import (
-	"encoding/json"
-	"fmt"
-	"log"
+	"database/sql"
 	"net/http"
 )
 
-type pathUrl struct {
-	Path string `json:"path"`
-	URL  string `json:"url"`
-}
+// type pathUrl struct {
+// 	Path string `json:"path"`
+// 	URL  string `json:"url"`
+// }
 
 func MapHandler(pathsToUrls map[string]string, fallback http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -24,25 +22,48 @@ func MapHandler(pathsToUrls map[string]string, fallback http.Handler) http.Handl
 	}
 }
 
-func JsonHandler(JsonBytes []byte, fallback http.Handler) (http.HandlerFunc, error) {
-	pathUrls, err := Parsejson(JsonBytes)
+//	func JsonHandler(JsonBytes []byte, fallback http.Handler) (http.HandlerFunc, error) {
+//		pathUrls, err := Parsejson(JsonBytes)
+//		if err != nil {
+//			log.Printf("Error unmarshalling JSON: %v", err)
+//			return nil, fmt.Errorf("failed to unmarshal JSON: %w", err)
+//		}
+//		pathsToUrls := buildMap(pathUrls)
+//		return MapHandler(pathsToUrls, fallback), nil
+//	}
+func DBHandler(db *sql.DB, fallback http.Handler) (http.HandlerFunc, error) {
+	pathsToUrls := make(map[string]string)
+
+	rows, err := db.Query("SELECT path, url FROM path_urls")
 	if err != nil {
-		log.Printf("Error unmarshalling JSON: %v", err)
-		return nil, fmt.Errorf("failed to unmarshal JSON: %w", err)
+		return nil, err
 	}
-	pathsToUrls := buildMap(pathUrls)
+	defer rows.Close()
+
+	for rows.Next() {
+		var path, url string
+		if err := rows.Scan(&path, &url); err != nil {
+			return nil, err
+		}
+		pathsToUrls[path] = url
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
 	return MapHandler(pathsToUrls, fallback), nil
 }
 
-func Parsejson(data []byte) ([]pathUrl, error) {
-	var pathUrls []pathUrl
-	err := json.Unmarshal(data, &pathUrls)
-	return pathUrls, err
-}
-func buildMap(pathUrls []pathUrl) map[string]string {
-	pathsToUrls := map[string]string{}
-	for _, purl := range pathUrls {
-		pathsToUrls[purl.Path] = purl.URL
-	}
-	return pathsToUrls
-}
+// func Parsejson(data []byte) ([]pathUrl, error) {
+// 	var pathUrls []pathUrl
+// 	err := json.Unmarshal(data, &pathUrls)
+// 	return pathUrls, err
+// }
+// func buildMap(pathUrls []pathUrl) map[string]string {
+// 	pathsToUrls := map[string]string{}
+// 	for _, purl := range pathUrls {
+// 		pathsToUrls[purl.Path] = purl.URL
+// 	}
+// 	return pathsToUrls
+// }
