@@ -1,16 +1,15 @@
 package URLShortner
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
-
-	"github.com/go-yaml/yaml"
 )
 
 type pathUrl struct {
-	Path string `yaml:"path"`
-	URL  string `yaml:"url"`
+	Path string `json:"path"`
+	URL  string `json:"url"`
 }
 
 func MapHandler(pathsToUrls map[string]string, fallback http.Handler) http.HandlerFunc {
@@ -25,19 +24,19 @@ func MapHandler(pathsToUrls map[string]string, fallback http.Handler) http.Handl
 	}
 }
 
-func YAMLHandler(yamlBytes []byte, fallback http.Handler) (http.HandlerFunc, error) {
-	pathUrls, err := ParseYaml(yamlBytes)
+func JsonHandler(JsonBytes []byte, fallback http.Handler) (http.HandlerFunc, error) {
+	pathUrls, err := Parsejson(JsonBytes)
 	if err != nil {
-		log.Printf("Error unmarshalling YAML: %v", err)
-		return nil, fmt.Errorf("failed to unmarshal YAML: %w", err)
+		log.Printf("Error unmarshalling JSON: %v", err)
+		return nil, fmt.Errorf("failed to unmarshal JSON: %w", err)
 	}
 	pathsToUrls := buildMap(pathUrls)
 	return MapHandler(pathsToUrls, fallback), nil
 }
 
-func ParseYaml(data []byte) ([]pathUrl, error) {
+func Parsejson(data []byte) ([]pathUrl, error) {
 	var pathUrls []pathUrl
-	err := yaml.Unmarshal(data, &pathUrls)
+	err := json.Unmarshal(data, &pathUrls)
 	return pathUrls, err
 }
 func buildMap(pathUrls []pathUrl) map[string]string {
